@@ -1,0 +1,64 @@
+#include "HX711.h"
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define LOADCELL_DOUT_PIN  3
+#define LOADCELL_SCK_PIN  2
+#define BUZZER_PIN 4
+#define LED_PIN 5
+
+// Initialize HX711
+HX711 scale;
+
+// Initialize OLED Display (128x64)
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+
+// Gas weight threshold (grams)
+#define EMPTY_THRESHOLD 500
+
+void setup() {
+    Serial.begin(9600);
+    scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+    pinMode(BUZZER_PIN, OUTPUT);
+    pinMode(LED_PIN, OUTPUT);
+    
+    if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+        Serial.println("SSD1306 allocation failed");
+        for (;;);
+    }
+    display.clearDisplay();
+    display.display();
+}
+
+void loop() {
+    if (scale.is_ready()) {
+        long weight = scale.get_units(10);
+        Serial.print("Gas Weight: ");
+        Serial.print(weight);
+        Serial.println(" g");
+
+        display.clearDisplay();
+        display.setTextSize(1);
+        display.setTextColor(WHITE);
+        display.setCursor(0, 10);
+        display.print("Gas Level: ");
+        display.print(weight);
+        display.println(" g");
+        display.display();
+
+        // Alert System
+        if (weight < EMPTY_THRESHOLD) {
+            digitalWrite(LED_PIN, HIGH);
+            tone(BUZZER_PIN, 1000);
+        } else {
+            digitalWrite(LED_PIN, LOW);
+            noTone(BUZZER_PIN);
+        }
+    } else {
+        Serial.println("HX711 not found");
+    }
+    delay(2000);
+}
